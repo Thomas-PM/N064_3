@@ -1,0 +1,10 @@
+*~
+*.swp
+*.swn
+*.swo
+*.asm
+*.obj
+
+assembler.linux
+a.out
+dumpsim
