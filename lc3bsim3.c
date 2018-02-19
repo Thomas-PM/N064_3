@@ -584,11 +584,34 @@ void eval_micro_sequencer() {
 	int COND = getCOND(MICROINSTRUCTION);
 	int BEN = getCOND(MICROINSTRUCTION);
 	int R  getCOND(MICROINSTRUCTION);
- 	int IR11 = 
-	int* OPCODE = 
-	int IRD = getIRD(MICR 
+ 	int IR11 = (CURRENT_LATCHES.IR >> 11) && 0x1;
+	int opcode[4];
+    for(int i = 0; i < 4; i++){
+        opcode[i] = (CURRENT_LATCHES.IR >> (i + 12) ) && 0x1;
+    }
+	int IRD = getIRD(MICROINSTRUCTION); 
+	int nextStateAddr[6];
+    int J = GetJ(MICROINSTRUCTION);
 
-	int* nextStateAddr = 0;
+    
+    if(IRD){
+        nextStateAddr[0] = opcode[0];
+        nextStateAddr[1] = opcode[1];
+        nextStateAddr[2] = opcode[2];
+        nextStateAddr[3] = opcode[3];
+        nextStateAddr[4] = 0;
+        nextStateAddr[5] = 0;
+    }
+    else{
+        nextStateAddr[0] = (J && 0x1) || ( (COND == 0x11) && IR11);
+        nextStateAddr[1] = ( (J >> 1) && 0x1) || ( (COND == 0x01) && IR11);
+        nextStateAddr[2] = ( (J >> 2) && 0x1) || ( (COND == 0x10) && IR11);
+        nextStateAddr[3] = ( (J >> 3) && 0x1);
+        nextStateAddr[4] = ( (J >> 4) && 0x1);
+        nextStateAddr[5] = ( (J >> 5) && 0x1);
+
+    }
+
 
 	MICROINSTRUCTION = CONTROL_STORE[nextStateAddr];
 }
