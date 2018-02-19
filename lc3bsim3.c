@@ -1,5 +1,6 @@
-me 1: Your full name
-    UTEID 1: Your UT EID
+/*
+	Name 1: Thomas McRoberts
+    UTEID 1: tpm627
 */
 
 /***************************************************************/
@@ -37,6 +38,7 @@ void latch_datapath_values();
 /***************************************************************/
 #define FALSE 0
 #define TRUE  1
+#define DEBUG 1
 
 /***************************************************************/
 /* Use this to avoid overflowing 16 bits on the bus.           */
@@ -161,7 +163,7 @@ int READY;	/* ready bit */
 
 int REGS[LC_3b_REGS]; /* register file. */
 
-int MICROINSTRUCTION[CONTROL_STORE_BITS]; /* The microintruction */
+int MICROINSTRUCTION[CONTROL_STORE_BITS]; /* The microinstruction */
 
 int STATE_NUMBER; /* Current State Number - Provided for debugging */ 
 } System_Latches;
@@ -574,13 +576,21 @@ int main(int argc, char *argv[]) {
 /***************************************************************/
 
 
-void eval_micro_sequencer() {
+/* 
+ * Evaluate the address of the next state according to the 
+ * micro sequencer logic. Latch the next microinstruction.
+ */
+void eval_micro_sequencer() {	
+	int COND = getCOND(MICROINSTRUCTION);
+	int BEN = getCOND(MICROINSTRUCTION);
+	int R  getCOND(MICROINSTRUCTION);
+ 	int IR11 = 
+	int* OPCODE = 
+	int IRD = getIRD(MICR 
 
-  /* 
-   * Evaluate the address of the next state according to the 
-   * micro sequencer logic. Latch the next microinstruction.
-   */
+	int* nextStateAddr = 0;
 
+	MICROINSTRUCTION = CONTROL_STORE[nextStateAddr];
 }
 
 
