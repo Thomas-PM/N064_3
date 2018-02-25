@@ -814,14 +814,14 @@ void eval_bus_drivers() {
     outADDR2MUX = Low16bits(outADDR2MUX);
 
     /*  Set ADDR1MUX  */
-    if(GetADDR1MUX(uinstr)){
+    if(GetADDR1MUX(uinstr) == 0){
         outADDR1MUX = CURRENT_LATCHES.PC;
     }
     else{
         outADDR1MUX = outSR1;
     }
     outADDR1MUX = Low16bits(outADDR1MUX);
-
+    
     /*  Set ADDRALU  */
     outADDRALU = Low16bits(outADDR1MUX + outADDR2MUX);
     
@@ -842,14 +842,14 @@ void eval_bus_drivers() {
     outPCMUX = Low16bits(outPCMUX);
 
     /*  Set MARMUX  */
-    if(GetMARMUX(uinstr)){
+    if(GetMARMUX(uinstr) == 0){
         outMARMUX = (CURRENT_LATCHES.IR && 0xFF) << 1;
     }
     else{
         outMARMUX = outADDRALU;
     }
     outMARMUX = Low16bits(outMARMUX);
-
+    
     /*  Set MDR2BUS Logic  */ 
     if(GetDATA_SIZE(uinstr) == 0 ){
         /*  Byte  */
