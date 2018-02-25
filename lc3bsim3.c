@@ -599,19 +599,22 @@ int sext(int num, int bits){
  * micro sequencer logic. Latch the next microinstruction.
  */
 void eval_micro_sequencer() {	
-	int COND = GetCOND(CURRENT_LATCHES.MICROINSTRUCTION);
+	
+    
+    int COND = GetCOND(CURRENT_LATCHES.MICROINSTRUCTION);
 	int BEN = GetLD_BEN(CURRENT_LATCHES.MICROINSTRUCTION);
 	int R  = CURRENT_LATCHES.READY;
  	int IR11 = (CURRENT_LATCHES.IR >> 11) && 0x1;
 	int opcode[4];
     int i = 0;
+    printf("opcode:");
     for(i = 0; i < 4; i++){
         opcode[i] = (CURRENT_LATCHES.IR >> (i + 12) ) && 0x1;
+        printf("%d", opcode[i]);
     }
 	int IRD = GetIRD(CURRENT_LATCHES.MICROINSTRUCTION); 
 	int nextStateAddr[6];
     int J = GetJ(CURRENT_LATCHES.MICROINSTRUCTION);
-
     
     if(IRD){
         nextStateAddr[0] = opcode[0];
@@ -623,16 +626,25 @@ void eval_micro_sequencer() {
     }
     else{
         nextStateAddr[0] = (J & 0x1) || ( (COND == 0x11) && IR11);
-        nextStateAddr[1] = ( (J >> 1) & 0x1) || ( (COND == 0x01) && IR11);
-        nextStateAddr[2] = ( (J >> 2) & 0x1) || ( (COND == 0x10) && IR11);
+        nextStateAddr[1] = ( (J >> 1) & 0x1) || ( (COND == 0x01) && R);
+        nextStateAddr[2] = ( (J >> 2) & 0x1) || ( (COND == 0x10) && BEN);
         nextStateAddr[3] = ( (J >> 3) & 0x1);
         nextStateAddr[4] = ( (J >> 4) & 0x1);
         nextStateAddr[5] = ( (J >> 5) & 0x1);
 
     }
     int nextState = nextStateAddr[0] + 2*nextStateAddr[1] + 4*nextStateAddr[2] + 8*nextStateAddr[3] + 16*nextStateAddr[4] + 32*nextStateAddr[5];
-
-	*NEXT_LATCHES.MICROINSTRUCTION = *CONTROL_STORE[nextState];
+    printf("Current state %d\n", CURRENT_LATCHES.STATE_NUMBER);
+    NEXT_LATCHES.STATE_NUMBER = nextState;
+    printf("NEXT state %d\n",NEXT_LATCHES.STATE_NUMBER);
+    /*
+    printf("next uinstr = %d\n Next control:", nextState );
+    */
+	for(i = 0; i < CONTROL_STORE_BITS; i++){
+        printf("%d", CONTROL_STORE[nextState][i]);
+        NEXT_LATCHES.MICROINSTRUCTION[i] = CONTROL_STORE[nextState][i];
+    }
+    printf("\n");
 }
 
 
@@ -652,22 +664,24 @@ void cycle_memory() {
         if(CURRENT_LATCHES.READY){
             NEXT_LATCHES.READY = 0;
             memCycles = 0;
+            printf("*************Started memory \n");
         }
         else{
             if(memCycles == 4){
+                printf("***********reading memory\n");
                 /*  Memory Access  */
                 if(GetR_W(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
                     /*  Read  */
                     if(GetDATA_SIZE(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
                         /* byte */
-                        CURRENT_LATCHES.MDR = (MEMORY[CURRENT_LATCHES.MAR >> 1][0] + (MEMORY[CURRENT_LATCHES.MAR >> 1][1] << 8) );
+                        NEXT_LATCHES.MDR = (MEMORY[CURRENT_LATCHES.MAR >> 1][0] + (MEMORY[CURRENT_LATCHES.MAR >> 1][1] << 8) );
                     }
                     else{
                         /* word */ 
-                        CURRENT_LATCHES.MDR = (MEMORY[CURRENT_LATCHES.MAR][0] + (MEMORY[CURRENT_LATCHES.MAR][1] << 8) );
+                        NEXT_LATCHES.MDR = (MEMORY[CURRENT_LATCHES.MAR >> 1][0] + (MEMORY[CURRENT_LATCHES.MAR >> 1][1] << 8) );
                     }
                 
-                
+                printf("  MDR= 0x%4x\n", NEXT_LATCHES.MDR); 
                 }
                 else{
                     /* WRITE */
@@ -904,19 +918,21 @@ void drive_bus() {
    */       
 void latch_datapath_values() {
     int* uinstr = CURRENT_LATCHES.MICROINSTRUCTION;
-    if(GetLD_IR){
+    if(GetLD_IR(uinstr)){
         NEXT_LATCHES.IR = BUS;
     }
-    if(GetLD_PC){
+    if(GetLD_PC(uinstr)){
         NEXT_LATCHES.PC = Low16bits(outPCMUX);
     }
-    if(GetLD_MAR){
+    if(GetLD_MAR(uinstr)){
        NEXT_LATCHES.MAR = BUS;
     }
-    if(GetLD_MDR){
-        NEXT_LATCHES.MDR = BUS;    
+    if(GetLD_MDR(uinstr)){
+        if(!GetMIO_EN(uinstr) ){
+            NEXT_LATCHES.MDR = BUS;
+        }
     }
-    if(GetLD_CC){
+    if(GetLD_CC(uinstr)){
         NEXT_LATCHES.N = 0;
         NEXT_LATCHES.Z = 0;
         NEXT_LATCHES.P = 0;
@@ -930,19 +946,22 @@ void latch_datapath_values() {
             NEXT_LATCHES.P = 1;
         }
     }
-    if(GetLD_BEN){
+    if(GetLD_BEN(uinstr)){
         int n = ( (CURRENT_LATCHES.IR >> 11) & 0x1) && CURRENT_LATCHES.N;
         int z = ( (CURRENT_LATCHES.IR >> 10) & 0x1) && CURRENT_LATCHES.Z;
         int p = ( (CURRENT_LATCHES.IR >> 9) & 0x1) && CURRENT_LATCHES.P;
         NEXT_LATCHES.BEN = n || z || p;
     }
-    if(GetLD_REG){
-        if(GetDRMUX){
+    if(GetLD_REG(uinstr)){
+        printf("************LD REG\n");
+        if(GetDRMUX(uinstr) ){
             /*  R7  */
+        printf("************LD R7\n");
             NEXT_LATCHES.REGS[7] = BUS;
         }
         else{
             /*  IR[11:9]  */
+            printf("************LD SR R%d\n",  (CURRENT_LATCHES.IR >> 9) & 0x7 );
             NEXT_LATCHES.REGS[ (CURRENT_LATCHES.IR >> 9) & 0x7 ] = BUS; 
         }
     }
