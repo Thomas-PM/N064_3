@@ -604,14 +604,15 @@ void eval_micro_sequencer() {
     int COND = GetCOND(CURRENT_LATCHES.MICROINSTRUCTION);
 	int BEN = GetLD_BEN(CURRENT_LATCHES.MICROINSTRUCTION);
 	int R  = CURRENT_LATCHES.READY;
- 	int IR11 = (CURRENT_LATCHES.IR >> 11) && 0x1;
+ 	int IR11 = (CURRENT_LATCHES.IR >> 11) & 0x1;
 	int opcode[4];
     int i = 0;
     printf("opcode:");
     for(i = 0; i < 4; i++){
-        opcode[i] = (CURRENT_LATCHES.IR >> (i + 12) ) && 0x1;
+        opcode[i] = (CURRENT_LATCHES.IR >> (i + 12) ) & 0x1;
         printf("%d", opcode[i]);
     }
+    printf("\n");
 	int IRD = GetIRD(CURRENT_LATCHES.MICROINSTRUCTION); 
 	int nextStateAddr[6];
     int J = GetJ(CURRENT_LATCHES.MICROINSTRUCTION);
@@ -637,9 +638,6 @@ void eval_micro_sequencer() {
     printf("Current state %d\n", CURRENT_LATCHES.STATE_NUMBER);
     NEXT_LATCHES.STATE_NUMBER = nextState;
     printf("NEXT state %d\n",NEXT_LATCHES.STATE_NUMBER);
-    /*
-    printf("next uinstr = %d\n Next control:", nextState );
-    */
 	for(i = 0; i < CONTROL_STORE_BITS; i++){
         printf("%d", CONTROL_STORE[nextState][i]);
         NEXT_LATCHES.MICROINSTRUCTION[i] = CONTROL_STORE[nextState][i];
@@ -771,7 +769,6 @@ void eval_bus_drivers() {
         outALU = outSR1;
         break;
     defualt:
-        printf("error in ALUK");
         break;
     }
     outALU = Low16bits(outALU);
@@ -791,7 +788,6 @@ void eval_bus_drivers() {
         outSHF = (outSR1 >> amount4) | highbits; 
         break;
     default:
-        printf("Error in SHF");
         break;
 
     }
@@ -922,7 +918,12 @@ void latch_datapath_values() {
         NEXT_LATCHES.IR = BUS;
     }
     if(GetLD_PC(uinstr)){
-        NEXT_LATCHES.PC = Low16bits(outPCMUX);
+        if(GetPCMUX(uinstr) == 1){
+            NEXT_LATCHES.PC = BUS;
+        }
+        else{
+            NEXT_LATCHES.PC = Low16bits(outPCMUX);
+        }
     }
     if(GetLD_MAR(uinstr)){
        NEXT_LATCHES.MAR = BUS;
