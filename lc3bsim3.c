@@ -635,9 +635,9 @@ void eval_micro_sequencer() {
 
     }
     int nextState = nextStateAddr[0] + 2*nextStateAddr[1] + 4*nextStateAddr[2] + 8*nextStateAddr[3] + 16*nextStateAddr[4] + 32*nextStateAddr[5];
-    printf("Current state %d\n", CURRENT_LATCHES.STATE_NUMBER);
+    printf("**************Current state %d\n", CURRENT_LATCHES.STATE_NUMBER);
     NEXT_LATCHES.STATE_NUMBER = nextState;
-    printf("NEXT state %d\n",NEXT_LATCHES.STATE_NUMBER);
+    printf("**************NEXT state %d\n",NEXT_LATCHES.STATE_NUMBER);
 	for(i = 0; i < CONTROL_STORE_BITS; i++){
         printf("%d", CONTROL_STORE[nextState][i]);
         NEXT_LATCHES.MICROINSTRUCTION[i] = CONTROL_STORE[nextState][i];
@@ -662,11 +662,9 @@ void cycle_memory() {
         if(CURRENT_LATCHES.READY){
             NEXT_LATCHES.READY = 0;
             memCycles = 0;
-            printf("*************Started memory \n");
         }
         else{
             if(memCycles == 4){
-                printf("***********reading memory\n");
                 /*  Memory Access  */
                 if(GetR_W(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
                     /*  Read  */
@@ -713,6 +711,7 @@ int outALU = 0;
 int outSHF = 0;
 
 int outADDR2MUX = 0;
+int outLSFH1 = 0;
 int outADDR1MUX = 0;
 int outADDRALU = 0;
 int outPCMUX = 0;
@@ -734,13 +733,14 @@ void eval_bus_drivers() {
     int* uinstr = CURRENT_LATCHES.MICROINSTRUCTION;
     /*  set SR1  */
     if(GetSR1MUX(uinstr)){
-        outSR1 = CURRENT_LATCHES.REGS[ (CURRENT_LATCHES.IR >> 6) & 0x3];
+        outSR1 = CURRENT_LATCHES.REGS[ (CURRENT_LATCHES.IR >> 6) & 0x7];
     }
     else{   
-        outSR1 = CURRENT_LATCHES.REGS[ (CURRENT_LATCHES.IR >> 9) & 0x3];
+        outSR1 = CURRENT_LATCHES.REGS[ (CURRENT_LATCHES.IR >> 9) & 0x7];
     }
 	outSR1 = Low16bits(outSR1);
-	
+    printf("SR1 0x%4x\n", outSR1);
+
     /*  set SR2  */
     if( (CURRENT_LATCHES.IR >> 5) & 0x1){
         outSR2MUX = sext(CURRENT_LATCHES.IR & 0x1F, 5);
@@ -752,7 +752,6 @@ void eval_bus_drivers() {
 	
     /*  Set ALU  */	
     switch(GetALUK(uinstr)) {
-    
     case 0:
         outALU = outSR1 + outSR2MUX; 
         break;
@@ -772,6 +771,7 @@ void eval_bus_drivers() {
         break;
     }
     outALU = Low16bits(outALU);
+    
 
     /*  Set SHF  */
     int amount4 = (CURRENT_LATCHES.IR & 0xF);
@@ -799,10 +799,10 @@ void eval_bus_drivers() {
         outADDR2MUX = 0;
         break;
     case 1:
-        outADDR2MUX = CURRENT_LATCHES.IR && 0x3F;
+        outADDR2MUX = CURRENT_LATCHES.IR & 0x3F;
         break;
     case 2:
-        outADDR2MUX = CURRENT_LATCHES.IR && 0x1FF;
+        outADDR2MUX = CURRENT_LATCHES.IR & 0x1FF;
         break;
     case 3:
         outADDR1MUX = CURRENT_LATCHES.IR & 0x7FF;
@@ -812,6 +812,17 @@ void eval_bus_drivers() {
         break;
     }
     outADDR2MUX = Low16bits(outADDR2MUX);
+    printf("outADDR2MUX = 0x%4x\n", outADDR2MUX);
+    
+    /*  Set LSFH1  */
+    if(GetLSHF1(uinstr)){
+        outLSFH1 = outADDR2MUX << 1;
+    }
+    else{
+        outLSFH1 = outADDR2MUX;
+    }
+    outLSFH1 = Low16bits(outLSFH1);
+    printf("LSHF1 = 0x%4x\n", outLSFH1);
 
     /*  Set ADDR1MUX  */
     if(GetADDR1MUX(uinstr) == 0){
@@ -821,10 +832,12 @@ void eval_bus_drivers() {
         outADDR1MUX = outSR1;
     }
     outADDR1MUX = Low16bits(outADDR1MUX);
-    
+    printf("ADDR1MUX = 0x%4x\n", outADDR1MUX);
+
     /*  Set ADDRALU  */
-    outADDRALU = Low16bits(outADDR1MUX + outADDR2MUX);
-    
+    outADDRALU = Low16bits(outADDR1MUX + outLSFH1);
+    printf("outADDRALU = 0x%4x\n", outADDRALU);    
+
     /*  Set PCMUX  */
     switch(GetPCMUX(uinstr)){
     case 0:
@@ -840,6 +853,7 @@ void eval_bus_drivers() {
         break;
     }
     outPCMUX = Low16bits(outPCMUX);
+    printf("PCMUX = 0x%4x\n", outPCMUX);
 
     /*  Set MARMUX  */
     if(GetMARMUX(uinstr) == 0){
