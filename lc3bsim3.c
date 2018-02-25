@@ -604,7 +604,6 @@ void eval_micro_sequencer() {
     int COND = GetCOND(CURRENT_LATCHES.MICROINSTRUCTION);
 	int BEN = CURRENT_LATCHES.BEN;
     if(BEN){
-        printf("    BENBENBENBENBENEBNBENBENBENBENBENBENNEBEBNEBENEEB, COND: 0x%2x,   be = %d\n", COND, (COND == 0x10) && BEN);
     }
 	int R  = CURRENT_LATCHES.READY;
  	int IR11 = (CURRENT_LATCHES.IR >> 11) & 0x1;
@@ -687,14 +686,15 @@ void cycle_memory() {
                     if(GetDATA_SIZE(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
                         /* byte */
                         int data = CURRENT_LATCHES.MDR & 0xFF;
-                        MEMORY[CURRENT_LATCHES.MAR >> 1][CURRENT_LATCHES.MAR & 0x1];
+                        MEMORY[CURRENT_LATCHES.MAR >> 1][CURRENT_LATCHES.MAR & 0x1] = data;
 
                     }
                     else{
                         /* word */ 
                         int hibyte = (CURRENT_LATCHES.MDR >> 8) & 0xFF;
                         int lobyte = CURRENT_LATCHES.MDR & 0xFF;
-                        MEMORY[CURRENT_LATCHES.MAR][0] = lobyte;
+                        MEMORY[CURRENT_LATCHES.MAR >> 1][1] = hibyte;
+                        MEMORY[CURRENT_LATCHES.MAR >> 1][0] = lobyte;
                     }
                 }
                 
@@ -808,7 +808,7 @@ void eval_bus_drivers() {
         outADDR2MUX = sext(CURRENT_LATCHES.IR & 0x1FF, 9);
         break;
     case 3:
-        outADDR1MUX = sext(CURRENT_LATCHES.IR & 0x7FF, 11);
+        outADDR2MUX = sext(CURRENT_LATCHES.IR & 0x7FF, 11);
         break;
     default:
         printf("Addr2MUX error");
@@ -872,11 +872,11 @@ void eval_bus_drivers() {
         /*  Byte  */
         if(CURRENT_LATCHES.MAR & 0x1){
             /*  HI byte  */
-            outMDRtoBUSLOGIC = (CURRENT_LATCHES.MDR >> 8) & 0xF;   
+            outMDRtoBUSLOGIC = (CURRENT_LATCHES.MDR >> 8) & 0xFF;   
         }
         else{
             /*  LO Byte  */
-            outMDRtoBUSLOGIC = CURRENT_LATCHES.MDR & 0xF;
+            outMDRtoBUSLOGIC = CURRENT_LATCHES.MDR & 0xFF;
         }
     }
     else{
@@ -965,7 +965,6 @@ void latch_datapath_values() {
         }
 
     }
-    printf("CC = %d%d%d\n", NEXT_LATCHES.N, NEXT_LATCHES.Z, NEXT_LATCHES.P);
     if(GetLD_BEN(uinstr)){
         int n = ( (CURRENT_LATCHES.IR >> 11) & 0x1) && CURRENT_LATCHES.N;
         int z = ( (CURRENT_LATCHES.IR >> 10) & 0x1) && CURRENT_LATCHES.Z;
