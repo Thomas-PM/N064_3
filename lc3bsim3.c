@@ -556,7 +556,6 @@ int main(int argc, char *argv[]) {
 
 }
 
-/***************************************************************/
 /* Do not modify the above code.
    You are allowed to use the following global variables in your
    code. These are defined above.
@@ -581,17 +580,17 @@ int main(int argc, char *argv[]) {
  * micro sequencer logic. Latch the next microinstruction.
  */
 void eval_micro_sequencer() {	
-	int COND = getCOND(MICROINSTRUCTION);
-	int BEN = getCOND(MICROINSTRUCTION);
-	int R  getCOND(MICROINSTRUCTION);
+	int COND = GetCOND(CURRENT_LATCHES.MICROINSTRUCTION);
+	int BEN = GetLD_BEN(CURRENT_LATCHES.MICROINSTRUCTION);
+	int R  = CURRENT_LATCHES.READY;
  	int IR11 = (CURRENT_LATCHES.IR >> 11) && 0x1;
 	int opcode[4];
     for(int i = 0; i < 4; i++){
         opcode[i] = (CURRENT_LATCHES.IR >> (i + 12) ) && 0x1;
     }
-	int IRD = getIRD(MICROINSTRUCTION); 
+	int IRD = GetIRD(CURRENT_LATCHES.MICROINSTRUCTION); 
 	int nextStateAddr[6];
-    int J = GetJ(MICROINSTRUCTION);
+    int J = GetJ(CURRENT_LATCHES.MICROINSTRUCTION);
 
     
     if(IRD){
@@ -611,36 +610,88 @@ void eval_micro_sequencer() {
         nextStateAddr[5] = ( (J >> 5) && 0x1);
 
     }
+    int nextState = nextStateAddr[0] + 2*nextStateAddr[1] + 4*nextStateAddr[2] + 8*nextStateAddr[3] + 16*nextStateAddr[4] + 32*nextStateAddr[5];
 
-
-	MICROINSTRUCTION = CONTROL_STORE[nextStateAddr];
+	*NEXT_LATCHES.MICROINSTRUCTION = *CONTROL_STORE[nextState];
 }
 
+int outMARMUX = 0;
+int outPCMUX = 0;
+int ourSR1 = 0;
+int outSR2 = 0;
+int outSR2MUX = 0;
+int outALU = 0;
+int outSHF = 0;
+int outMDRtoBUSLOGIC = 0;
+int outBUStoMDRLOGIC = 0;
+int outMDRMUX = 0;
+
+
+/* 
+ * This function emulates memory and the WE logic. 
+ * Keep track of which cycle of MEMEN we are dealing with.  
+ * If fourth, we need to latch Ready bit at the end of 
+ * cycle to prepare microsequencer for the fifth cycle.  
+ */
+
+int memCycles = 0;
 
 void cycle_memory() {
- 
-  /* 
-   * This function emulates memory and the WE logic. 
-   * Keep track of which cycle of MEMEN we are dealing with.  
-   * If fourth, we need to latch Ready bit at the end of 
-   * cycle to prepare microsequencer for the fifth cycle.  
-   */
+    if( GetMIO_EN(CURRENT_LATCHES.MICROINSTRUCTION) ){
+        /*  Enable memory  */
+        if(CURRENT_LATCHES.READY){
+            NEXT_LATCHES.READY = 0;
+            memCycles = 0;
+        }
+        else{
+            if(memCycles == 4){
+                // memory access
+                if(GetR_W(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
+                    /*  Read  */
+                    if(GetDATA_SIZE(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
+                        /* byte */
+                        CURRENT_LATCHES.MDR = MEMORY[CURRENT_LATCHES.MAR >> 1][0];
+                    }
+                    else{
+                        /* word */ 
+                        CURRENT_LATCHES.MDR = (MEMORY[CURRENT_LATCHES.MAR >> 1][0] + (MEMORY[CURRENT_LATCHES.MAR >> 1][1] << 8) );
+                    }
+                
+                
+                }
+                else{
+                    /* WRITE */
+                    if(GetDATA_SIZE(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
+                        /* byte */
 
+                    }
+                    else{
+                        /* word */ 
+
+                    }
+                }
+                
+                NEXT_LATCHES.READY = 1;
+            }
+        }
+
+    memCycles ++;
+    }
 }
 
 
 
+/* 
+ * Datapath routine emulating operations before driving the bus.
+ * Evaluate the input of tristate drivers 
+ *      Gate_MARMUX,
+ *		Gate_PC,
+ *		Gate_ALU,
+ *		Gate_SHF,
+ *		Gate_MDR.
+ */    
 void eval_bus_drivers() {
-
-  /* 
-   * Datapath routine emulating operations before driving the bus.
-   * Evaluate the input of tristate drivers 
-   *             Gate_MARMUX,
-   *		 Gate_PC,
-   *		 Gate_ALU,
-   *		 Gate_SHF,
-   *		 Gate_MDR.
-   */    
+    
 
 }
 
@@ -665,3 +716,6 @@ void latch_datapath_values() {
    */       
 
 }
+
+
+
