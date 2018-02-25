@@ -585,7 +585,8 @@ void eval_micro_sequencer() {
 	int R  = CURRENT_LATCHES.READY;
  	int IR11 = (CURRENT_LATCHES.IR >> 11) && 0x1;
 	int opcode[4];
-    for(int i = 0; i < 4; i++){
+    int i = 0;
+    for(i = 0; i < 4; i++){
         opcode[i] = (CURRENT_LATCHES.IR >> (i + 12) ) && 0x1;
     }
 	int IRD = GetIRD(CURRENT_LATCHES.MICROINSTRUCTION); 
@@ -645,7 +646,7 @@ void cycle_memory() {
         }
         else{
             if(memCycles == 4){
-                // memory access
+                /*  Memory Access  */
                 if(GetR_W(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
                     /*  Read  */
                     if(GetDATA_SIZE(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
@@ -663,11 +664,15 @@ void cycle_memory() {
                     /* WRITE */
                     if(GetDATA_SIZE(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
                         /* byte */
+                        int data = CURRENT_LATCHES.MDR && 0xFF;
+                        MEMORY[CURRENT_LATCHES.MAR >> 1][CURRENT_LATCHES.MAR && 0x1];
 
                     }
                     else{
                         /* word */ 
-
+                        int hibyte = (CURRENT_LATCHES.MDR >> 8) && 0xFF;
+                        int lobyte = CURRENT_LATCHES.MDR && 0xFF;
+                        MEMORY[CURRENT_LATCHES.MAR][0] = lobyte;
                     }
                 }
                 
