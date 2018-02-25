@@ -622,12 +622,12 @@ void eval_micro_sequencer() {
         nextStateAddr[5] = 0;
     }
     else{
-        nextStateAddr[0] = (J && 0x1) || ( (COND == 0x11) && IR11);
-        nextStateAddr[1] = ( (J >> 1) && 0x1) || ( (COND == 0x01) && IR11);
-        nextStateAddr[2] = ( (J >> 2) && 0x1) || ( (COND == 0x10) && IR11);
-        nextStateAddr[3] = ( (J >> 3) && 0x1);
-        nextStateAddr[4] = ( (J >> 4) && 0x1);
-        nextStateAddr[5] = ( (J >> 5) && 0x1);
+        nextStateAddr[0] = (J & 0x1) || ( (COND == 0x11) && IR11);
+        nextStateAddr[1] = ( (J >> 1) & 0x1) || ( (COND == 0x01) && IR11);
+        nextStateAddr[2] = ( (J >> 2) & 0x1) || ( (COND == 0x10) && IR11);
+        nextStateAddr[3] = ( (J >> 3) & 0x1);
+        nextStateAddr[4] = ( (J >> 4) & 0x1);
+        nextStateAddr[5] = ( (J >> 5) & 0x1);
 
     }
     int nextState = nextStateAddr[0] + 2*nextStateAddr[1] + 4*nextStateAddr[2] + 8*nextStateAddr[3] + 16*nextStateAddr[4] + 32*nextStateAddr[5];
@@ -660,11 +660,11 @@ void cycle_memory() {
                     /*  Read  */
                     if(GetDATA_SIZE(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
                         /* byte */
-                        CURRENT_LATCHES.MDR = MEMORY[CURRENT_LATCHES.MAR >> 1][0];
+                        CURRENT_LATCHES.MDR = (MEMORY[CURRENT_LATCHES.MAR >> 1][0] + (MEMORY[CURRENT_LATCHES.MAR >> 1][1] << 8) );
                     }
                     else{
                         /* word */ 
-                        CURRENT_LATCHES.MDR = (MEMORY[CURRENT_LATCHES.MAR >> 1][0] + (MEMORY[CURRENT_LATCHES.MAR >> 1][1] << 8) );
+                        CURRENT_LATCHES.MDR = (MEMORY[CURRENT_LATCHES.MAR][0] + (MEMORY[CURRENT_LATCHES.MAR][1] << 8) );
                     }
                 
                 
@@ -673,14 +673,14 @@ void cycle_memory() {
                     /* WRITE */
                     if(GetDATA_SIZE(CURRENT_LATCHES.MICROINSTRUCTION) == 0){
                         /* byte */
-                        int data = CURRENT_LATCHES.MDR && 0xFF;
-                        MEMORY[CURRENT_LATCHES.MAR >> 1][CURRENT_LATCHES.MAR && 0x1];
+                        int data = CURRENT_LATCHES.MDR & 0xFF;
+                        MEMORY[CURRENT_LATCHES.MAR >> 1][CURRENT_LATCHES.MAR & 0x1];
 
                     }
                     else{
                         /* word */ 
-                        int hibyte = (CURRENT_LATCHES.MDR >> 8) && 0xFF;
-                        int lobyte = CURRENT_LATCHES.MDR && 0xFF;
+                        int hibyte = (CURRENT_LATCHES.MDR >> 8) & 0xFF;
+                        int lobyte = CURRENT_LATCHES.MDR & 0xFF;
                         MEMORY[CURRENT_LATCHES.MAR][0] = lobyte;
                     }
                 }
@@ -695,15 +695,18 @@ void cycle_memory() {
 
 
 
-int outMDRMUX = 0;
-int outMARMUX = 0;
-int outPCMUX = 0;
 int outSR1 = 0;
 int outSR2MUX = 0;
 int outALU = 0;
 int outSHF = 0;
+
 int outADDR2MUX = 0;
 int outADDR1MUX = 0;
+int outADDRALU = 0;
+int outPCMUX = 0;
+int outMARMUX = 0;
+
+int outMDRMUX = 0;
 int outMDRtoBUSLOGIC = 0;
 int outBUStoMDRLOGIC = 0;
 /* 
@@ -716,21 +719,22 @@ int outBUStoMDRLOGIC = 0;
  *		Gate_MDR.
  */   
 void eval_bus_drivers() {
-    int uinstr = CURRENT_LATCHES.MICROINSTRUCTION;
+    int* uinstr = CURRENT_LATCHES.MICROINSTRUCTION;
     /*  set SR1  */
     if(GetSR1MUX(uinstr)){
-        outSR1 = CURRENT_LATCHES.REG[ (CURRENT_LATCHES.IR >> 6) && 0x3];
+        outSR1 = CURRENT_LATCHES.REGS[ (CURRENT_LATCHES.IR >> 6) & 0x3];
     }
-    else   
-        outSR1 = CURRENT_LATCHES.REG[ (CURRENT_LATCHES.IR >> 9) && 0x3];
+    else{   
+        outSR1 = CURRENT_LATCHES.REGS[ (CURRENT_LATCHES.IR >> 9) & 0x3];
     }
 	outSR1 = Low16bits(outSR1);
 	
     /*  set SR2  */
-    if( (CURRENT_LATCHES.IR >> 5) && 0x1){
-        outSR2MUX = sext(CURRENT_LATCHES.IR && 0x1F);
+    if( (CURRENT_LATCHES.IR >> 5) & 0x1){
+        outSR2MUX = sext(CURRENT_LATCHES.IR & 0x1F, 5);
+    }
     else{
-        outSR2MUX = CURRENT_LATCHES.REGS[ (CURRENT_LATCHES.IR) && 0x3];
+        outSR2MUX = CURRENT_LATCHES.REGS[ (CURRENT_LATCHES.IR) & 0x3];
     }
     outSR2MUX = Low16bits(outSR2MUX);
 	
@@ -742,11 +746,11 @@ void eval_bus_drivers() {
         break;
 
     case 1:
-        outALU = outSR1 && outSR2MUX;
+        outALU = outSR1 & outSR2MUX;
         break;
 
     case 2:
-        outALU = outSR1 ^^ outSR2MUX;
+        outALU = outSR1 ^ outSR2MUX;
         break;
 
     case 3:
@@ -759,9 +763,10 @@ void eval_bus_drivers() {
     outALU = Low16bits(outALU);
 
     /*  Set SHF  */
-    int amount4 = (CURRENT_LATCHES && 0xF);
+    int amount4 = (CURRENT_LATCHES.IR & 0xF);
     int highbits = 0xFF << (16 - amount4);
-    switch( (CURRENT_LATCHES.IR >> 4) && 0x3){
+    int sign = ( (outSR1 >> 15) & 0x1 ) * highbits;
+    switch( (CURRENT_LATCHES.IR >> 4) & 0x3){
     case 0: 
         outSHF = outSR1 << amount4;
         break;
@@ -769,8 +774,7 @@ void eval_bus_drivers() {
         outSHF = (outSR1 >> amount4) & (~highbits);
         break;
     case 3:
-        int sign = ( (outSR1 >> 15) && 0x1 ) * highbits;
-        outSHF = (outSR1 >>amount4) | highbits; 
+        outSHF = (outSR1 >> amount4) | highbits; 
         break;
     default:
         printf("Error in SHF");
@@ -779,8 +783,81 @@ void eval_bus_drivers() {
     }
     outSHF = Low16bits(outSHF);
 
-    outADD
+    /*  Set ADDR2MUX  */
+    switch(GetADDR2MUX(uinstr)){
+    case 0:
+        outADDR2MUX = 0;
+        break;
+    case 1:
+        outADDR2MUX = CURRENT_LATCHES.IR && 0x3F;
+        break;
+    case 2:
+        outADDR2MUX = CURRENT_LATCHES.IR && 0x1FF;
+        break;
+    case 3:
+        outADDR1MUX = CURRENT_LATCHES.IR & 0x7FF;
+        break;
+    default:
+        printf("Addr2MUX error");
+        break;
+    }
+    outADDR2MUX = Low16bits(outADDR2MUX);
 
+    /*  Set ADDR1MUX  */
+    if(GetADDR1MUX(uinstr)){
+        outADDR1MUX = CURRENT_LATCHES.PC;
+    }
+    else{
+        outADDR1MUX = outSR1;
+    }
+    outADDR1MUX = Low16bits(outADDR1MUX);
+
+    /*  Set ADDRALU  */
+    outADDRALU = Low16bits(outADDR1MUX + outADDR2MUX);
+    
+    /*  Set PCMUX  */
+    switch(GetPCMUX(uinstr)){
+    case 0:
+        outPCMUX = CURRENT_LATCHES.PC + 2;
+        break;
+    case 1:
+        break;
+    case 2:
+        outPCMUX = outADDRALU;
+        break;
+    default:
+        printf("Error in PCMUX");
+        break;
+    }
+    outPCMUX = Low16bits(outPCMUX);
+
+    /*  Set MARMUX  */
+    if(GetMARMUX(uinstr)){
+        outMARMUX = (CURRENT_LATCHES.IR && 0xFF) << 1;
+    }
+    else{
+        outMARMUX = outADDRALU;
+    }
+    outMARMUX = Low16bits(outMARMUX);
+
+    /*  Set MDR2BUS Logic  */ 
+    if(GetDATA_SIZE(uinstr) == 0 ){
+        /*  Byte  */
+        if(CURRENT_LATCHES.MAR & 0x1){
+            /*  HI byte  */
+            outMDRtoBUSLOGIC = (CURRENT_LATCHES.MDR >> 8) & 0xF;   
+        }
+        else{
+            /*  LO Byte  */
+            outMDRtoBUSLOGIC = CURRENT_LATCHES.MDR & 0xF;
+        }
+    }
+    else{
+        /*  Word  */
+        outMDRtoBUSLOGIC = CURRENT_LATCHES.MDR;
+
+    }
+    outMDRtoBUSLOGIC = Low16bits(outMDRtoBUSLOGIC);
 }
 
 
@@ -789,8 +866,33 @@ void eval_bus_drivers() {
    * tristate drivers. 
    */       
 void drive_bus() {
-
-
+    int uinstr = CURRENT_LATCHES.MICROINSTRUCTION;
+    int drives = 0;
+    BUS = 0;
+    if(GetGATE_PC(uinstr) ){
+        BUS = CURRENT_LATCHES.PC;
+        drives ++;
+    }
+    if(GetGATE_ALU(uinstr)){
+        BUS = outALU;
+        drives ++;
+    }
+    if(GetGATE_MDR(uinstr)){
+        BUS = outMDRtoBUSLOGIC;
+        drives ++;
+    }
+    if(GetGATE_SHF(uinstr)){
+        BU = outSHF;
+        drives ++;
+    }
+    if(GetGATE_MARMUX(uinstr)){
+        BUS = outMARMUX;
+        drives ++;
+    }
+    if(drives > 1){
+        printf("Drive Bus error: number of drives = %i", drives);
+    }
+    BUS = Low16bits(BUS);
 }
 
 
