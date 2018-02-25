@@ -602,7 +602,10 @@ void eval_micro_sequencer() {
 	
     
     int COND = GetCOND(CURRENT_LATCHES.MICROINSTRUCTION);
-	int BEN = GetLD_BEN(CURRENT_LATCHES.MICROINSTRUCTION);
+	int BEN = CURRENT_LATCHES.BEN;
+    if(BEN){
+        printf("    BENBENBENBENBENEBNBENBENBENBENBENBENNEBEBNEBENEEB, COND: 0x%2x,   be = %d\n", COND, (COND == 0x10) && BEN);
+    }
 	int R  = CURRENT_LATCHES.READY;
  	int IR11 = (CURRENT_LATCHES.IR >> 11) & 0x1;
 	int opcode[4];
@@ -626,9 +629,9 @@ void eval_micro_sequencer() {
         nextStateAddr[5] = 0;
     }
     else{
-        nextStateAddr[0] = (J & 0x1) || ( (COND == 0x11) && IR11);
-        nextStateAddr[1] = ( (J >> 1) & 0x1) || ( (COND == 0x01) && R);
-        nextStateAddr[2] = ( (J >> 2) & 0x1) || ( (COND == 0x10) && BEN);
+        nextStateAddr[0] = (J & 0x1) || ( (COND == 3) && IR11);
+        nextStateAddr[1] = ( (J >> 1) & 0x1) || ( (COND == 1) && R);
+        nextStateAddr[2] = ( (J >> 2) & 0x1) || ( (COND == 2) && BEN);
         nextStateAddr[3] = ( (J >> 3) & 0x1);
         nextStateAddr[4] = ( (J >> 4) & 0x1);
         nextStateAddr[5] = ( (J >> 5) & 0x1);
@@ -799,13 +802,13 @@ void eval_bus_drivers() {
         outADDR2MUX = 0;
         break;
     case 1:
-        outADDR2MUX = CURRENT_LATCHES.IR & 0x3F;
+        outADDR2MUX = sext(CURRENT_LATCHES.IR & 0x3F, 6);
         break;
     case 2:
-        outADDR2MUX = CURRENT_LATCHES.IR & 0x1FF;
+        outADDR2MUX = sext(CURRENT_LATCHES.IR & 0x1FF, 9);
         break;
     case 3:
-        outADDR1MUX = CURRENT_LATCHES.IR & 0x7FF;
+        outADDR1MUX = sext(CURRENT_LATCHES.IR & 0x7FF, 11);
         break;
     default:
         printf("Addr2MUX error");
@@ -960,23 +963,23 @@ void latch_datapath_values() {
         else{
             NEXT_LATCHES.P = 1;
         }
+
     }
+    printf("CC = %d%d%d\n", NEXT_LATCHES.N, NEXT_LATCHES.Z, NEXT_LATCHES.P);
     if(GetLD_BEN(uinstr)){
         int n = ( (CURRENT_LATCHES.IR >> 11) & 0x1) && CURRENT_LATCHES.N;
         int z = ( (CURRENT_LATCHES.IR >> 10) & 0x1) && CURRENT_LATCHES.Z;
         int p = ( (CURRENT_LATCHES.IR >> 9) & 0x1) && CURRENT_LATCHES.P;
         NEXT_LATCHES.BEN = n || z || p;
+        printf("nzp = %d%d%d, BEN = %d\n", n, z, p, NEXT_LATCHES.BEN);
     }
     if(GetLD_REG(uinstr)){
-        printf("************LD REG\n");
         if(GetDRMUX(uinstr) ){
             /*  R7  */
-        printf("************LD R7\n");
             NEXT_LATCHES.REGS[7] = BUS;
         }
         else{
             /*  IR[11:9]  */
-            printf("************LD SR R%d\n",  (CURRENT_LATCHES.IR >> 9) & 0x7 );
             NEXT_LATCHES.REGS[ (CURRENT_LATCHES.IR >> 9) & 0x7 ] = BUS; 
         }
     }
