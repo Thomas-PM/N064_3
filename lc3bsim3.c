@@ -872,11 +872,11 @@ void eval_bus_drivers() {
         /*  Byte  */
         if(CURRENT_LATCHES.MAR & 0x1){
             /*  HI byte  */
-            outMDRtoBUSLOGIC = (CURRENT_LATCHES.MDR >> 8) & 0xFF;   
+            outMDRtoBUSLOGIC = sext( (CURRENT_LATCHES.MDR >> 8) & 0xFF, 8);   
         }
         else{
             /*  LO Byte  */
-            outMDRtoBUSLOGIC = CURRENT_LATCHES.MDR & 0xFF;
+            outMDRtoBUSLOGIC = sext(CURRENT_LATCHES.MDR & 0xFF, 8);
         }
     }
     else{
