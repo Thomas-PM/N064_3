@@ -866,7 +866,7 @@ void eval_bus_drivers() {
    * tristate drivers. 
    */       
 void drive_bus() {
-    int uinstr = CURRENT_LATCHES.MICROINSTRUCTION;
+    int* uinstr = CURRENT_LATCHES.MICROINSTRUCTION;
     int drives = 0;
     BUS = 0;
     if(GetGATE_PC(uinstr) ){
@@ -882,7 +882,7 @@ void drive_bus() {
         drives ++;
     }
     if(GetGATE_SHF(uinstr)){
-        BU = outSHF;
+        BUS = outSHF;
         drives ++;
     }
     if(GetGATE_MARMUX(uinstr)){
@@ -903,6 +903,50 @@ void drive_bus() {
    * after drive_bus.
    */       
 void latch_datapath_values() {
+    int* uinstr = CURRENT_LATCHES.MICROINSTRUCTION;
+    if(GetLD_IR){
+        NEXT_LATCHES.IR = BUS;
+    }
+    if(GetLD_PC){
+        NEXT_LATCHES.PC = Low16bits(outPCMUX);
+    }
+    if(GetLD_MAR){
+       NEXT_LATCHES.MAR = BUS;
+    }
+    if(GetLD_MDR){
+        NEXT_LATCHES.MDR = BUS;    
+    }
+    if(GetLD_CC){
+        NEXT_LATCHES.N = 0;
+        NEXT_LATCHES.Z = 0;
+        NEXT_LATCHES.P = 0;
+        if(BUS == 0){
+            NEXT_LATCHES.Z = 1;
+        }
+        else if( (BUS >> 15) & 0x1){
+            NEXT_LATCHES.N = 1;
+        }
+        else{
+            NEXT_LATCHES.P = 1;
+        }
+    }
+    if(GetLD_BEN){
+        int n = ( (CURRENT_LATCHES.IR >> 11) & 0x1) && CURRENT_LATCHES.N;
+        int z = ( (CURRENT_LATCHES.IR >> 10) & 0x1) && CURRENT_LATCHES.Z;
+        int p = ( (CURRENT_LATCHES.IR >> 9) & 0x1) && CURRENT_LATCHES.P;
+        NEXT_LATCHES.BEN = n || z || p;
+    }
+    if(GetLD_REG){
+        if(GetDRMUX){
+            /*  R7  */
+            NEXT_LATCHES.REGS[7] = BUS;
+        }
+        else{
+            /*  IR[11:9]  */
+            NEXT_LATCHES.REGS[ (CURRENT_LATCHES.IR >> 9) & 0x7 ] = BUS; 
+        }
+    }
+    
 
 
 }
