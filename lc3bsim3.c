@@ -575,6 +575,25 @@ int main(int argc, char *argv[]) {
 /***************************************************************/
 
 
+int sext(int num, int bits){
+	int sign = (num >> (bits - 1)) & 0x1;
+	int ret;
+	ret = 0xFFFF << bits;
+
+	if(sign){
+		ret = ret | num;
+ 	}
+	else{
+		ret = (~ret) & num;
+	}
+
+	return ret;
+}
+  
+
+
+
+
 /* 
  * Evaluate the address of the next state according to the 
  * micro sequencer logic. Latch the next microinstruction.
@@ -616,16 +635,6 @@ void eval_micro_sequencer() {
 	*NEXT_LATCHES.MICROINSTRUCTION = *CONTROL_STORE[nextState];
 }
 
-int outMARMUX = 0;
-int outPCMUX = 0;
-int ourSR1 = 0;
-int outSR2 = 0;
-int outSR2MUX = 0;
-int outALU = 0;
-int outSHF = 0;
-int outMDRtoBUSLOGIC = 0;
-int outBUStoMDRLOGIC = 0;
-int outMDRMUX = 0;
 
 
 /* 
@@ -686,6 +695,17 @@ void cycle_memory() {
 
 
 
+int outMDRMUX = 0;
+int outMARMUX = 0;
+int outPCMUX = 0;
+int outSR1 = 0;
+int outSR2MUX = 0;
+int outALU = 0;
+int outSHF = 0;
+int outADDR2MUX = 0;
+int outADDR1MUX = 0;
+int outMDRtoBUSLOGIC = 0;
+int outBUStoMDRLOGIC = 0;
 /* 
  * Datapath routine emulating operations before driving the bus.
  * Evaluate the input of tristate drivers 
@@ -694,24 +714,85 @@ void cycle_memory() {
  *		Gate_ALU,
  *		Gate_SHF,
  *		Gate_MDR.
- */    
+ */   
 void eval_bus_drivers() {
+    int uinstr = CURRENT_LATCHES.MICROINSTRUCTION;
+    /*  set SR1  */
+    if(GetSR1MUX(uinstr)){
+        outSR1 = CURRENT_LATCHES.REG[ (CURRENT_LATCHES.IR >> 6) && 0x3];
+    }
+    else   
+        outSR1 = CURRENT_LATCHES.REG[ (CURRENT_LATCHES.IR >> 9) && 0x3];
+    }
+	outSR1 = Low16bits(outSR1);
+	
+    /*  set SR2  */
+    if( (CURRENT_LATCHES.IR >> 5) && 0x1){
+        outSR2MUX = sext(CURRENT_LATCHES.IR && 0x1F);
+    else{
+        outSR2MUX = CURRENT_LATCHES.REGS[ (CURRENT_LATCHES.IR) && 0x3];
+    }
+    outSR2MUX = Low16bits(outSR2MUX);
+	
+    /*  Set ALU  */	
+    switch(GetALUK(uinstr)) {
     
+    case 0:
+        outALU = outSR1 + outSR2MUX; 
+        break;
+
+    case 1:
+        outALU = outSR1 && outSR2MUX;
+        break;
+
+    case 2:
+        outALU = outSR1 ^^ outSR2MUX;
+        break;
+
+    case 3:
+        outALU = outSR1;
+        break;
+    defualt:
+        printf("error in ALUK");
+        break;
+    }
+    outALU = Low16bits(outALU);
+
+    /*  Set SHF  */
+    int amount4 = (CURRENT_LATCHES && 0xF);
+    int highbits = 0xFF << (16 - amount4);
+    switch( (CURRENT_LATCHES.IR >> 4) && 0x3){
+    case 0: 
+        outSHF = outSR1 << amount4;
+        break;
+    case 1:
+        outSHF = (outSR1 >> amount4) & (~highbits);
+        break;
+    case 3:
+        int sign = ( (outSR1 >> 15) && 0x1 ) * highbits;
+        outSHF = (outSR1 >>amount4) | highbits; 
+        break;
+    default:
+        printf("Error in SHF");
+        break;
+
+    }
+    outSHF = Low16bits(outSHF);
+
+    outADD
 
 }
 
-
-void drive_bus() {
 
   /* 
    * Datapath routine for driving the bus from one of the 5 possible 
    * tristate drivers. 
    */       
+void drive_bus() {
+
 
 }
 
-
-void latch_datapath_values() {
 
   /* 
    * Datapath routine for computing all functions that need to latch
@@ -719,6 +800,8 @@ void latch_datapath_values() {
    * require sourcing the bus; therefore, this routine has to come 
    * after drive_bus.
    */       
+void latch_datapath_values() {
+
 
 }
 
