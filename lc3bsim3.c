@@ -778,8 +778,8 @@ void eval_bus_drivers() {
 
     /*  Set SHF  */
     int amount4 = (CURRENT_LATCHES.IR & 0xF);
+    int sign = ( (outSR1 >> 15) & 0x1 );
     int highbits = 0xFF << (16 - amount4);
-    int sign = ( (outSR1 >> 15) & 0x1 ) * highbits;
     switch( (CURRENT_LATCHES.IR >> 4) & 0x3){
     case 0: 
         outSHF = outSR1 << amount4;
@@ -788,7 +788,7 @@ void eval_bus_drivers() {
         outSHF = (outSR1 >> amount4) & (~highbits);
         break;
     case 3:
-        outSHF = (outSR1 >> amount4) | highbits; 
+        outSHF = (outSR1 >> amount4) | highbits*sign; 
         break;
     default:
         break;
